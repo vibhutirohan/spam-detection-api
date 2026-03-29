@@ -8,8 +8,8 @@ MODEL_PATH = os.path.join("saved_models", "spam_model.joblib")
 
 app = FastAPI(
     title="Community Spam Detection API",
-    description="REST API for checking whether a message is OK or BAD",
-    version="2.0.0"
+    description="REST API for checking whether content is good or bad",
+    version="2.0.1"
 )
 
 # Load model once when the API starts
@@ -64,12 +64,13 @@ def predict_message(payload: MessageRequest):
         # Combine title + description into one text input for the model
         full_text = f"{title} {description}".strip()
 
-        prediction = model.predict([full_text])[0]
+        prediction = str(model.predict([full_text])[0]).strip().upper()
 
-        # Convert model output to simple API response
-        if str(prediction).upper() == "SPAM":
+        # HAM -> good, SPAM -> bad
+        if prediction == "SPAM":
             return MessageResponse(status="bad")
-        return MessageResponse(status="ok")
+        else:
+            return MessageResponse(status="good")
 
     except HTTPException:
         raise
@@ -100,7 +101,9 @@ def predict_batch(payload: BatchRequest):
 
         results = []
         for item, pred in zip(payload.messages, predictions):
-            status = "bad" if str(pred).upper() == "SPAM" else "ok"
+            pred = str(pred).strip().upper()
+            status = "bad" if pred == "SPAM" else "good"
+
             results.append({
                 "title": item.title,
                 "description": item.description,
